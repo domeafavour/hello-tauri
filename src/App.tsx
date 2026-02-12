@@ -1,13 +1,19 @@
+import { useQuery } from "@tanstack/react-query";
 import { invoke } from "@tauri-apps/api/core";
 import { useState } from "react";
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
   const [name, setName] = useState("");
+  const [variables, setVariables] = useState({ name: "" });
+  const { data: greetMsg = "", isLoading } = useQuery({
+    enabled: !!variables.name,
+    queryKey: ["greet", variables.name],
+    queryFn: async () =>
+      await invoke<string>("greet", { name: variables.name }),
+  });
 
   async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
+    setVariables({ name });
   }
 
   return (
@@ -31,7 +37,7 @@ function App() {
           Greet
         </button>
       </form>
-      <p className="text-center mt-4">{greetMsg}</p>
+      <p className="text-center mt-4">{isLoading ? "Loading..." : greetMsg}</p>
     </main>
   );
 }
