@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { invoke } from "@tauri-apps/api/core";
 import { useState } from "react";
+import Database from "@tauri-apps/plugin-sql";
 
 interface Todo {
   id: number;
@@ -8,15 +8,61 @@ interface Todo {
   completed: boolean;
 }
 
+interface TodoRow {
+  id: number;
+  text: string;
+  completed: number;
+}
+
 type FilterType = "all" | "active" | "completed";
+
+// Database instance
+let db: Database | null = null;
+
+async function getDb() {
+  if (!db) {
+    db = await Database.load("sqlite:todos.db");
+  }
+  return db;
+}
 
 // Query and mutation functions
 async function fetchTodos(): Promise<Todo[]> {
-  return await invoke<Todo[]>("load_todos");
+  const database = await getDb();
+  const rows = await database.select<TodoRow[]>("SELECT * FROM todos ORDER BY id DESC");
+  return rows.map((row) => ({
+    id: row.id,
+    text: row.text,
+    completed: row.completed === 1,
+  }));
 }
 
-async function saveTodos(todos: Todo[]): Promise<void> {
-  await invoke("save_todos", { todos });
+async function addTodo(text: string): Promise<void> {
+  const database = await getDb();
+  const id = Date.now();
+  await database.execute("INSERT INTO todos (id, text, completed) VALUES ($1, $2, $3)", [
+    id,
+    text,
+    0,
+  ]);
+}
+
+async function toggleTodo(id: number, completed: boolean): Promise<void> {
+  const database = await getDb();
+  await database.execute("UPDATE todos SET completed = $1 WHERE id = $2", [
+    completed ? 1 : 0,
+    id,
+  ]);
+}
+
+async function deleteTodo(id: number): Promise<void> {
+  const database = await getDb();
+  await database.execute("DELETE FROM todos WHERE id = $1", [id]);
+}
+
+async function clearCompleted(): Promise<void> {
+  const database = await getDb();
+  await database.execute("DELETE FROM todos WHERE completed = 1");
 }
 
 function App() {
@@ -39,13 +85,7 @@ function App() {
   // Mutation for adding a todo
   const addTodoMutation = useMutation({
     mutationFn: async (text: string) => {
-      const newTodo: Todo = {
-        id: Date.now(),
-        text: text.trim(),
-        completed: false,
-      };
-      const updatedTodos = [...todos, newTodo];
-      await saveTodos(updatedTodos);
+      await addTodo(text.trim());
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["todos"] });
@@ -58,11 +98,8 @@ function App() {
 
   // Mutation for toggling a todo
   const toggleTodoMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const updatedTodos = todos.map((todo) =>
-        todo.id === id ? { ...todo, completed: !todo.completed } : todo,
-      );
-      await saveTodos(updatedTodos);
+    mutationFn: async ({ id, completed }: { id: number; completed: boolean }) => {
+      await toggleTodo(id, !completed);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["todos"] });
@@ -75,8 +112,7 @@ function App() {
   // Mutation for deleting a todo
   const deleteTodoMutation = useMutation({
     mutationFn: async (id: number) => {
-      const updatedTodos = todos.filter((todo) => todo.id !== id);
-      await saveTodos(updatedTodos);
+      await deleteTodo(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["todos"] });
@@ -89,8 +125,7 @@ function App() {
   // Mutation for clearing completed todos
   const clearCompletedMutation = useMutation({
     mutationFn: async () => {
-      const updatedTodos = todos.filter((todo) => !todo.completed);
-      await saveTodos(updatedTodos);
+      await clearCompleted();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["todos"] });
@@ -224,7 +259,7 @@ function App() {
               <input
                 type="checkbox"
                 checked={todo.completed}
-                onChange={() => toggleTodoMutation.mutate(todo.id)}
+                onChange={() => toggleTodoMutation.mutate({ id: todo.id, completed: todo.completed })}
                 disabled={toggleTodoMutation.isPending}
                 className="w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
               />
