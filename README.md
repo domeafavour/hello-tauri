@@ -4,6 +4,12 @@ This template should help get you started developing with Tauri, React and Types
 
 ![initialize](./media/initialize.png)
 
+## debug in vscode
+
+![debug](./media/debug.png)
+
+![preview](./media/preview.png)
+
 ## Recommended IDE Setup
 
 - [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)

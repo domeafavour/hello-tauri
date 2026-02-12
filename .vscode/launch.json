@@ -1,0 +1,48 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Tauri Development Debug",
+      "cargo": {
+        "args": [
+          "build",
+          "--manifest-path=./src-tauri/Cargo.toml",
+          "--no-default-features"
+        ]
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Tauri Production Debug",
+      "cargo": {
+        "args": [
+          "build",
+          "--release",
+          "--manifest-path=./src-tauri/Cargo.toml"
+        ]
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Debug Frontend (Chrome)",
+      "url": "http://localhost:1420",
+      "webRoot": "${workspaceFolder}/src",
+      "preLaunchTask": "ui:dev"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Debug Tauri (Full Stack)",
+      "configurations": ["Tauri Development Debug", "Debug Frontend (Chrome)"],
+      "stopAll": true
+    }
+  ]
+}
